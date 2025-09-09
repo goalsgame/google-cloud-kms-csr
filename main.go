@@ -25,14 +25,14 @@ var (
 
 func main() {
 	keyFlag := flag.String("key", "", "")
-	commonNameFlag := flag.String("common-name", "", "")
-	orgFlag := flag.String("org", "", "")
+	commonNameFlag := flag.String("common-name", "GOALS AB", "")
+	orgFlag := flag.String("org", "GOALS AB", "")
 	emailFlag := flag.String("email", "", "")
 	outFlag := flag.String("out", "out.csr", "")
-	orgUnitFlag := flag.String("org-unit","", "")
-	countryFlag := flag.String("country","US", "")
-	provinceFlag := flag.String("province","California", "")
-	localityFlag := flag.String("locality","San Francisco", "")
+	orgUnitFlag := flag.String("org-unit", "", "")
+	countryFlag := flag.String("country", "SE", "")
+	provinceFlag := flag.String("province", "Stockholms län", "")
+	localityFlag := flag.String("locality", "Stockholm", "")
 
 	flag.Parse()
 
@@ -81,7 +81,7 @@ func main() {
 	// TODO Make this a flag or read from s.PublicKey?
 	//      https://cloud.google.com/kms/docs/algorithms
 	//      https://cloud.google.com/kms/docs/reference/rest/v1/projects.locations.keyRings.cryptoKeys#CryptoKeyVersionTemplate
-	template.SignatureAlgorithm = x509.ECDSAWithSHA256 // x509.SHA256WithRSAPSS
+	template.SignatureAlgorithm = x509.SHA256WithRSA
 
 	f, err := os.Create(*outFlag)
 	if err != nil {
@@ -133,10 +133,21 @@ func (g *GoogleKMS) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) 
 	// API expects the digest to be base64 encoded
 	digest64 := base64.StdEncoding.EncodeToString(digest)
 
+	digestProto := &cloudkms.Digest{}
+
+	switch opts.HashFunc() {
+	case crypto.SHA256:
+		digestProto.Sha256 = digest64
+	case crypto.SHA384:
+		digestProto.Sha384 = digest64
+	case crypto.SHA512:
+		digestProto.Sha512 = digest64
+	default:
+		return nil, fmt.Errorf("unsupported hash algorithm: %v", opts.HashFunc())
+	}
+
 	req := &cloudkms.AsymmetricSignRequest{
-		Digest: &cloudkms.Digest{
-			Sha256: digest64, // TODO: sha256 needs to follow sign algo
-		},
+		Digest: digestProto,
 	}
 
 	response, err := g.Client.Projects.Locations.KeyRings.CryptoKeys.CryptoKeyVersions.
