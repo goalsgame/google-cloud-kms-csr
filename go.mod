@@ -1,4 +1,4 @@
-module github.com/mattes/google-cloud-kms-csr
+module github.com/goalsgame/google-cloud-kms-csr
 
 go 1.24.4
 
